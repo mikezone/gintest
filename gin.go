@@ -423,6 +423,60 @@ func serveStaticFiles() {
 	engine.Run()
 }
 
+func servingDataFromReader()  {
+	engine := gin.Default()
+	engine.GET("/someDataFromReader", func(context *gin.Context) {
+		upstreamResponse, err := http.Get("https://raw.githubusercontent.com/gin-gonic/logo/master/color.png")
+		if err != nil || upstreamResponse.StatusCode != http.StatusOK {
+			context.Status(http.StatusServiceUnavailable)
+			return
+		}
+
+		reader := upstreamResponse.Body
+		contentLength := upstreamResponse.ContentLength
+		contentType := upstreamResponse.Header.Get("Content-Type")
+
+		extraHeaders := map[string]string {
+			"Content-Disposition": `attachment; filename="gopher.png"`,
+		}
+		context.DataFromReader(http.StatusOK, contentLength, contentType, reader, extraHeaders)
+	})
+	engine.Run()
+}
+
+func htmlReadering() {
+	engine := gin.Default()
+
+	engine.LoadHTMLGlob("templates/*")
+	engine.GET("/index", func(c *gin.Context) {
+		c.HTML(http.StatusOK, "index.tmpl", gin.H{
+			"title": "Main website",
+		})
+	})
+
+	//engine.LoadHTMLFiles("templates/template1.html")
+	//engine.GET("/index", func(c *gin.Context) {
+	//	c.HTML(http.StatusOK, "template1.html", gin.H{
+	//		"title": "Main website",
+	//	})
+	//})
+
+
+	//engine.LoadHTMLGlob("templates/**/*")
+	//engine.GET("/posts/index", func(c *gin.Context) {
+	//	c.HTML(http.StatusOK, "posts/index.tmpl", gin.H{
+	//		"title": "Posts",
+	//	})
+	//})
+	//engine.GET("/users/index", func(c *gin.Context) {
+	//	c.HTML(http.StatusOK, "users/index.tmpl", gin.H{
+	//		"title": "Users",
+	//	})
+	//})
+
+	engine.Run()
+}
+
 func main() {
 	//sampleDemo()
 	//parameterInPath()
@@ -434,5 +488,7 @@ func main() {
 	//howToWriteLogFile()
 	//modelBindingTest()
 	//responseContentTypeTest()
-	serveStaticFiles()
+	//serveStaticFiles()
+	//servingDataFromReader()
+	htmlReadering()
 }
