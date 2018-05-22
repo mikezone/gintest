@@ -7,6 +7,10 @@ import (
 	"fmt"
 	"os"
 	"io"
+	"time"
+	"gopkg.in/go-playground/validator.v8"
+	"reflect"
+	"github.com/gin-gonic/gin/binding"
 )
 
 func sampleDemo() {
@@ -56,6 +60,7 @@ func parameterInPath() {
 		}
 		context.JSON(http.StatusOK, message)
 	})
+
 	router.Run()
 }
 
@@ -207,10 +212,216 @@ func howToWriteLogFile()  {
 	engine.Run(":8080")
 }
 
-//func contextTest() {
-//context.XML()
-//context.Abort()
-//}
+// Binding from JSON
+type Login struct {
+	User     string `form:"user" json:"user" binding:"required"`
+	Password string `form:"password" json:"password" binding:"required"`
+}
+
+type Booking struct {
+	CheckIn time.Time `form:"check_in" binding:"required,bookabledate" time_format:"2006-01-02"`
+	CheckOut time.Time `form:"check_out" binding:"required,gtfield=CheckIn" time_format:"2006-01-02"`
+}
+
+func bookableDate(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
+	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string,) bool {
+		if date, ok := field.Interface().(time.Time); ok {
+			today := time.Now()
+			if today.Year() > date.Year() || today.YearDay() > date.YearDay() {
+				return false
+			}
+		}
+		return true
+}
+
+type Person struct {
+	Name    string `form:"name"`
+	Address string `form:"address"`
+	Birthday time.Time `form:"birthday" time_format:"2006-01-02" time_utc:"1"`
+}
+
+type myForm struct {
+    Colors []string `form:"colors[]"`
+}
+
+func modelBindingTest() {
+
+	engine := gin.Default()
+
+	// post body is json-formated string
+	/**
+	** both of below are ok
+
+	Content-Type: text/plain; charset=utf-8
+	{"user": "Mike", "password": "123"}
+
+	Content-Type: application/json; charset=utf-8
+	{"user":"Mike","password":"123"}
+	*/
+	engine.POST("/loginJSON", func(context *gin.Context) {
+		var json Login
+		if err := context.ShouldBindJSON(&json); err == nil {
+			if json.User == "Mike" && json.Password == "123" {
+				context.JSON(http.StatusOK, gin.H{"message": "login success!!"})
+			} else {
+				context.JSON(http.StatusOK, gin.H{"message": "unauthorized"})
+			}
+		} else {
+			context.JSON(http.StatusOK, gin.H{"error": err.Error()})
+		}
+	})
+
+	// post body is HTML form
+	/*
+	both of below are ok
+
+	Content-Type: multipart/form-data; charset=utf-8; boundary=__X_PAW_BOUNDARY__
+
+	Content-Type: application/x-www-form-urlencoded; charset=utf-8
+	*/
+	engine.POST("/loginForm", func(context *gin.Context) {
+		var form Login
+		if err := context.ShouldBind(&form); err == nil {
+			if form.User == "Mike" && form.Password == "123" {
+				context.JSON(http.StatusOK, gin.H{"message": "ok"})
+			} else {
+				context.JSON(http.StatusUnauthorized, gin.H{"message": "unauthorized"})
+			}
+		} else {
+			context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
+	})
+
+	// custom validators
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		v.RegisterValidation("bookabledate", bookableDate)
+	}
+
+	getBookable := func(context *gin.Context) {
+		var b Booking
+		if err := context.ShouldBindWith(&b, binding.Query); err == nil {
+			context.JSON(http.StatusOK, gin.H{"message": "book is valid"})
+		} else {
+			context.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		}
+	}
+	// test: http "localhost:8080/bookable?check_in=2018-05-24&check_out=2018-10-02"
+	engine.GET("/bookable", getBookable)
+
+	// only bind query string
+	startPage := func(context *gin.Context) {
+		var person Person
+		if context.ShouldBindQuery(&person) == nil {
+			log.Println("====== Only Bind By Query String =====")
+			log.Println(person.Name)
+			log.Println(person.Address)
+		}
+		context.String(http.StatusOK, "success")
+	}
+	// for test: http 'localhost:8080/testing?name=Mike&address=hehe'
+	// only bind querystring, both of below have no effect
+	/*
+	application/x-www-form-urlencoded:
+	name=Mike&address=123
+
+	multipart/form-data
+	--__X_PAW_BOUNDARY__
+	Content-Disposition: form-data; name="name"
+
+	Mike
+	--__X_PAW_BOUNDARY__
+	Content-Disposition: form-data; name="address"
+
+	123
+	--__X_PAW_BOUNDARY__--
+	*/
+	engine.Any("/testing", startPage)
+
+	// bind query or post data : ShoudBind
+	bindQueryOrPostData := func(context *gin.Context) {
+		var person Person
+		if context.ShouldBind(&person) == nil {
+			log.Println(person.Name)
+			log.Println(person.Address)
+			log.Println(person.Birthday)
+		}
+		context.JSON(http.StatusOK, gin.H{"message": "ok"})
+	}
+	// for test:
+	/*
+	QueryString:
+	http 'localhost:8080/bindQueryOrForm?name=Mike&address=hehe&birthday=2018-05-20'
+
+	Form:
+	application/x-www-form-urlencoded
+	multipart/form-data
+	*/
+	engine.Any("/bindQueryOrForm", bindQueryOrPostData)
+
+
+	// bind checkbox
+	handlerCheckBox := func(context *gin.Context) {
+		var form myForm
+		context.ShouldBind(&form)
+		context.JSON(http.StatusOK, gin.H{
+			"colors": form.Colors,
+		})
+	}
+	// http 'localhost:8080/bindCheckBox?colors[]=red&colors[]=green'
+	engine.GET("/bindCheckBox", handlerCheckBox)
+	// test:  post checkbox
+	// application/x-www-form-urlencoded
+	// http -f POST localhost:8080/bindCheckBox 'colors[]=red' 'colors[]=green'
+	// multipart/form-data
+	// http -f POST localhost:8080/bindCheckBox 'colors[]=red' 'colors[]=green' 'colors[]=cyan' file@~/Desktop/a.txt
+	engine.POST("/bindCheckBox", handlerCheckBox)
+
+	// run
+	engine.Run()
+}
+
+//XML, JSON and YAML rendering
+func responseContentTypeTest() {
+	engine := gin.Default()
+
+	// gin.H is a shortcut for map[string]interface{}
+	// test: http localhost:8080/someJSON
+	engine.GET("/someJSON", func(context *gin.Context) {
+		context.JSON(http.StatusOK, gin.H{"message": "hey", "status": http.StatusOK})
+	})
+
+	// test: http localhost:8080/moreJSON
+	engine.GET("/moreJSON", func(context *gin.Context) {
+		var msg struct {
+			Name	string `json:"user"`
+			Message	string
+			Number 	int
+		}
+		msg.Name = "Lena"
+		msg.Message = "hey"
+		msg.Number = 123
+		// Note that msg.Name becomes "user" in the JSON
+		context.JSON(http.StatusOK, msg)
+	})
+
+	// test: http localhost:8080/someXML
+	engine.GET("/someXML", func(context *gin.Context) {
+		context.XML(http.StatusOK, gin.H{"message": "ok"})
+	})
+	// test: http localhost:8080/someYAML
+	engine.GET("/someYAML", func(context *gin.Context) {
+		context.YAML(http.StatusOK, gin.H{"message": "ok"})
+	})
+	engine.Run()
+}
+
+func serveStaticFiles() {
+	engine := gin.Default()
+	engine.Static("/static", "./static") // http http://localhost:8080/static/1.html
+	engine.StaticFS("/statictest", http.Dir("./fakestatic")) // http http://localhost:8080/statictest/1.html
+	engine.StaticFile("/favicon.ico", "./resources/favicon.ico") // http://localhost:8080/favicon.ico
+	engine.Run()
+}
 
 func main() {
 	//sampleDemo()
@@ -220,5 +431,8 @@ func main() {
 	//multipleFilesUseForm()
 	//groupingRoutesTest()
 	//middlewareTest()
-	howToWriteLogFile()
+	//howToWriteLogFile()
+	//modelBindingTest()
+	//responseContentTypeTest()
+	serveStaticFiles()
 }
