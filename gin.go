@@ -11,6 +11,7 @@ import (
 	"gopkg.in/go-playground/validator.v8"
 	"reflect"
 	"github.com/gin-gonic/gin/binding"
+	"html/template"
 )
 
 func sampleDemo() {
@@ -194,20 +195,20 @@ func middlewareTest() {
 	engine.Run()
 }
 
-func howToWriteLogFile()  {
+func howToWriteLogFile() {
 	// Disable Console Color, you don't need console color when writing the logs to file.
-    gin.DisableConsoleColor()
+	gin.DisableConsoleColor()
 
-    // Logging to a file.
-    f, _ := os.Create("gin.log")
-    gin.DefaultWriter = io.MultiWriter(f)
+	// Logging to a file.
+	f, _ := os.Create("gin.log")
+	gin.DefaultWriter = io.MultiWriter(f)
 
-    // Use the following code if you need to write the logs to file and console at the same time.
-    // gin.DefaultWriter = io.MultiWriter(f, os.Stdout)
+	// Use the following code if you need to write the logs to file and console at the same time.
+	// gin.DefaultWriter = io.MultiWriter(f, os.Stdout)
 
-    engine := gin.Default()
-    engine.GET("/ping", func(context *gin.Context) {
-    	context.String(http.StatusOK, "pong")
+	engine := gin.Default()
+	engine.GET("/ping", func(context *gin.Context) {
+		context.String(http.StatusOK, "pong")
 	})
 	engine.Run(":8080")
 }
@@ -219,29 +220,29 @@ type Login struct {
 }
 
 type Booking struct {
-	CheckIn time.Time `form:"check_in" binding:"required,bookabledate" time_format:"2006-01-02"`
+	CheckIn  time.Time `form:"check_in" binding:"required,bookabledate" time_format:"2006-01-02"`
 	CheckOut time.Time `form:"check_out" binding:"required,gtfield=CheckIn" time_format:"2006-01-02"`
 }
 
 func bookableDate(v *validator.Validate, topStruct reflect.Value, currentStructOrField reflect.Value,
-	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string,) bool {
-		if date, ok := field.Interface().(time.Time); ok {
-			today := time.Now()
-			if today.Year() > date.Year() || today.YearDay() > date.YearDay() {
-				return false
-			}
+	field reflect.Value, fieldType reflect.Type, fieldKind reflect.Kind, param string, ) bool {
+	if date, ok := field.Interface().(time.Time); ok {
+		today := time.Now()
+		if today.Year() > date.Year() || today.YearDay() > date.YearDay() {
+			return false
 		}
-		return true
+	}
+	return true
 }
 
 type Person struct {
-	Name    string `form:"name"`
-	Address string `form:"address"`
+	Name     string    `form:"name"`
+	Address  string    `form:"address"`
 	Birthday time.Time `form:"birthday" time_format:"2006-01-02" time_utc:"1"`
 }
 
 type myForm struct {
-    Colors []string `form:"colors[]"`
+	Colors []string `form:"colors[]"`
 }
 
 func modelBindingTest() {
@@ -358,7 +359,6 @@ func modelBindingTest() {
 	*/
 	engine.Any("/bindQueryOrForm", bindQueryOrPostData)
 
-
 	// bind checkbox
 	handlerCheckBox := func(context *gin.Context) {
 		var form myForm
@@ -393,9 +393,9 @@ func responseContentTypeTest() {
 	// test: http localhost:8080/moreJSON
 	engine.GET("/moreJSON", func(context *gin.Context) {
 		var msg struct {
-			Name	string `json:"user"`
-			Message	string
-			Number 	int
+			Name    string `json:"user"`
+			Message string
+			Number  int
 		}
 		msg.Name = "Lena"
 		msg.Message = "hey"
@@ -417,13 +417,13 @@ func responseContentTypeTest() {
 
 func serveStaticFiles() {
 	engine := gin.Default()
-	engine.Static("/static", "./static") // http http://localhost:8080/static/1.html
-	engine.StaticFS("/statictest", http.Dir("./fakestatic")) // http http://localhost:8080/statictest/1.html
+	engine.Static("/static", "./static")                         // http http://localhost:8080/static/1.html
+	engine.StaticFS("/statictest", http.Dir("./fakestatic"))     // http http://localhost:8080/statictest/1.html
 	engine.StaticFile("/favicon.ico", "./resources/favicon.ico") // http://localhost:8080/favicon.ico
 	engine.Run()
 }
 
-func servingDataFromReader()  {
+func servingDataFromReader() {
 	engine := gin.Default()
 	engine.GET("/someDataFromReader", func(context *gin.Context) {
 		upstreamResponse, err := http.Get("https://raw.githubusercontent.com/gin-gonic/logo/master/color.png")
@@ -436,7 +436,7 @@ func servingDataFromReader()  {
 		contentLength := upstreamResponse.ContentLength
 		contentType := upstreamResponse.Header.Get("Content-Type")
 
-		extraHeaders := map[string]string {
+		extraHeaders := map[string]string{
 			"Content-Disposition": `attachment; filename="gopher.png"`,
 		}
 		context.DataFromReader(http.StatusOK, contentLength, contentType, reader, extraHeaders)
@@ -447,12 +447,12 @@ func servingDataFromReader()  {
 func htmlReadering() {
 	engine := gin.Default()
 
-	engine.LoadHTMLGlob("templates/*")
-	engine.GET("/index", func(c *gin.Context) {
-		c.HTML(http.StatusOK, "index.tmpl", gin.H{
-			"title": "Main website",
-		})
-	})
+	//engine.LoadHTMLGlob("templates/*")
+	//engine.GET("/index", func(c *gin.Context) {
+	//	c.HTML(http.StatusOK, "index.tmpl", gin.H{
+	//		"title": "Main website",
+	//	})
+	//})
 
 	//engine.LoadHTMLFiles("templates/template1.html")
 	//engine.GET("/index", func(c *gin.Context) {
@@ -460,7 +460,6 @@ func htmlReadering() {
 	//		"title": "Main website",
 	//	})
 	//})
-
 
 	//engine.LoadHTMLGlob("templates/**/*")
 	//engine.GET("/posts/index", func(c *gin.Context) {
@@ -474,6 +473,107 @@ func htmlReadering() {
 	//	})
 	//})
 
+	// Using templates with same name in different directories
+	engine.LoadHTMLGlob("templates/**/*")
+	// must `define tamplates` in templates files
+	engine.GET("/posts/index", func(context *gin.Context) {
+		context.HTML(http.StatusOK, "posts/index.tmpl", gin.H{
+			"title": "Posts",
+		})
+	})
+	// must `define tamplates` in templates files
+	engine.GET("/users/index", func(context *gin.Context) {
+		context.HTML(http.StatusOK, "users/index.tmpl", gin.H{
+			"title": "Users",
+		})
+	})
+
+	engine.Run()
+}
+
+func customTemplateRenderer() {
+	engine := gin.Default()
+	//html := template.Must(template.ParseFiles("file1", "file2"))
+	html := template.Must(template.ParseFiles("file1"))
+	engine.SetHTMLTemplate(html)
+
+	engine.GET("/", func(context *gin.Context) {
+		context.HTML(http.StatusOK, "file1", nil)
+	})
+
+	engine.Run()
+}
+
+func customDelimiters() {
+	engine := gin.Default()
+	engine.Delims("{[{", "}]}")
+	engine.LoadHTMLGlob("templates/customDelimiters.html")
+	engine.GET("/delimiter", func(context *gin.Context) {
+		context.HTML(http.StatusOK, "customDelimiters.html", gin.H{"title": "delimiter"})
+	})
+	engine.Run()
+}
+
+// custom template filters
+func customTemplateFuncs() {
+	engine := gin.Default()
+
+	formatAsDate := func(t time.Time) string {
+		year, month, day := t.Date()
+		return fmt.Sprintf("%d%02d/%02d", year, month, day)
+	}
+	engine.Delims("{[{", "}]}")
+	engine.SetFuncMap(template.FuncMap{
+		"formatAsDate": formatAsDate,
+	})
+
+	engine.LoadHTMLGlob("templates/raw.tmpl")
+	engine.GET("/raw", func(context *gin.Context) {
+		context.HTML(http.StatusOK, "raw.tmpl", gin.H{
+			"now": time.Date(2017, 07, 01, 0, 0, 0, 0, time.UTC),
+		})
+	})
+	engine.Run()
+}
+
+// context
+// redirect
+func redirectTest() {
+	engine := gin.Default()
+	engine.GET("/redirect", func(context *gin.Context) {
+		context.Redirect(http.StatusMovedPermanently, "http://www.google.com/")
+	})
+	engine.Run()
+}
+
+func customMiddleware() {
+	Logger := func() gin.HandlerFunc {
+		return func(c *gin.Context) {
+			t := time.Now()
+
+			// Set example variable
+			c.Set("example", "12345")
+
+			// before request
+			c.Next()
+
+			// after request
+			latency := time.Since(t)
+			log.Print(latency)
+
+			// access the status we are sending
+			status := c.Writer.Status()
+			log.Println(status)
+		}
+	}
+
+	engine := gin.New()
+	engine.Use(Logger())
+
+	engine.GET("/customMiddleware", func(context *gin.Context) {
+		exmple, ok := context.MustGet("example").(string)
+		log.Println(exmple, ok)
+	})
 	engine.Run()
 }
 
@@ -490,5 +590,10 @@ func main() {
 	//responseContentTypeTest()
 	//serveStaticFiles()
 	//servingDataFromReader()
-	htmlReadering()
+	//htmlReadering()
+	//customTemplateRenderer()
+	//customDelimiters()
+	//customTemplateFuncs()
+	//redirectTest()
+	customMiddleware()
 }
