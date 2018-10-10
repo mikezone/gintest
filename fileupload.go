@@ -15,11 +15,11 @@ func main() {
 func fileUpload() {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("sandbox_type", "...")
-	writer.WriteField("source", "...")
-	writer.WriteField("apikey", "...")
-	writer.WriteField("run_time", "..")
-	writer.CreateFormFile("file", "...")
+	writer.WriteField("a", "...")
+	writer.WriteField("b", "...")
+	writer.WriteField("c", "...")
+	writer.WriteField("d", "..")
+	writer.CreateFormFile("e", "...")
 	writer.Close()
 
 	// Create client
