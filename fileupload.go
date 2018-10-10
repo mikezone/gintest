@@ -15,18 +15,18 @@ func main() {
 func fileUpload() {
 	body := &bytes.Buffer{}
 	writer := multipart.NewWriter(body)
-	writer.WriteField("sandbox_type", "win7_sp1_enx86_office2013_sp1")
-	writer.WriteField("source", "api.threatbook")
-	writer.WriteField("apikey", "03c770882e87585fea0272a8e6a7b7e37085e193475884b1316e14fb193e992d")
-	writer.WriteField("run_time", "60")
-	writer.CreateFormFile("file", "/path/to/file")
+	writer.WriteField("sandbox_type", "...")
+	writer.WriteField("source", "...")
+	writer.WriteField("apikey", "...")
+	writer.WriteField("run_time", "..")
+	writer.CreateFormFile("file", "...")
 	writer.Close()
 
 	// Create client
 	client := &http.Client{}
 
 	// Create request
-	req, err := http.NewRequest("POST", "https://s.threatbook.cn/api/v2/file/upload", body)
+	req, err := http.NewRequest("POST", "...", body)
 
 	// Headers
 	req.Header.Add("Content-Type", writer.FormDataContentType())
